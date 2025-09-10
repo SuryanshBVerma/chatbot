@@ -1,10 +1,69 @@
 import { useRef, useState, forwardRef, useImperativeHandle, useEffect } from "react"
-import { Send, Loader2, Plus, Mic } from "lucide-react"
+import { Send, Loader2, Plus, Mic, Square } from "lucide-react"
 import ComposerActionsPopover from "./ComposerActionsPopover"
 import { cls } from "./utils"
+import { convertToWav } from "../utils/audioUtils"
+
+
+
 
 const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
   const [value, setValue] = useState("")
+  const [isRecording, setIsRecording] = useState(false)
+  const [mediaRecorder, setMediaRecorder] = useState(null)
+  const [audioBlob, setAudioBlob] = useState(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [recordingError, setRecordingError] = useState("")
+  const audioChunksRef = useRef([])
+  // Voice recording handlers
+  async function startRecording() {
+    setRecordingError("")
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new window.MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        setIsTranscribing(true);
+
+        const webmBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+        const wavBlob = await convertToWav(webmBlob)
+
+        setAudioBlob(wavBlob)
+        // setAudioURL(URL.createObjectURL(wavBlob))
+
+        // Upload as proper WAV
+        const file = new File([wavBlob], "recording.wav", { type: "audio/wav" })
+        const formData = new FormData()
+        formData.append("audio", file)
+
+        const res = await fetch("http://127.0.0.1:5000/transcribe", {
+          method: "POST",
+          body: formData,
+        })
+
+        const data = await res.json()
+        setIsTranscribing(false);
+        setValue(data.transcription || "")
+      }
+      recorder.start()
+      setMediaRecorder(recorder)
+      setIsRecording(true)
+    } catch (err) {
+      setRecordingError("Could not access microphone.")
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder) {
+      mediaRecorder.stop()
+      setIsRecording(false)
+      setMediaRecorder(null)
+    }
+  }
   const [sending, setSending] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const [lineCount, setLineCount] = useState(1)
@@ -104,23 +163,44 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
           />
         </div>
 
-        <div className="flex items-center justify-between mt-2">
-          <ComposerActionsPopover>
+        <div className="flex items-center justify-end mt-2">
+          {/* <ComposerActionsPopover>
             <button
               className="inline-flex shrink-0 items-center justify-center rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors"
               title="Add attachment"
             >
               <Plus className="h-4 w-4" />
             </button>
-          </ComposerActionsPopover>
+          </ComposerActionsPopover> */}
 
           <div className="flex items-center gap-1 shrink-0">
-            <button
-              className="inline-flex items-center justify-center rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors"
-              title="Voice input"
-            >
-              <Mic className="h-4 w-4" />
-            </button>
+            {isTranscribing ? (
+              <button
+                className="inline-flex items-center justify-center rounded-full p-2 text-blue-500 transition-colors cursor-wait border border-blue-900"
+                title="Transcribing..."
+                disabled
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </button>
+            ) : isRecording ? (
+              <button
+                className="inline-flex gap-1 items-center justify-center rounded-full p-2 text-red-500 hover:bg-red-100 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-800 dark:hover:text-red-300 transition-colors border border-red-900 text-xs"
+                title="Stop recording"
+                onClick={stopRecording}
+              >
+                <Square className="h-3 w-3" />
+              </button>
+            ) : (
+              <button
+                className="inline-flex items-center justify-center rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors"
+                title="Voice input"
+                onClick={startRecording}
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+            )}
+
+
             <button
               onClick={handleSend}
               disabled={sending || busy || !value.trim()}
@@ -149,6 +229,9 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
           Enter
         </kbd>{" "}
         for newline
+        {recordingError && (
+          <span className="ml-2 text-red-500">{recordingError}</span>
+        )}
       </div>
     </div>
   )
