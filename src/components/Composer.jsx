@@ -5,8 +5,7 @@ import { cls } from "./utils"
 
 import { convertToWav } from "../utils/audioUtils"
 import { transcribeAudio } from "../services/transcribe"
-
-
+import { toast } from 'react-toastify';
 
 
 const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
@@ -15,11 +14,10 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
   const [mediaRecorder, setMediaRecorder] = useState(null)
   const [audioBlob, setAudioBlob] = useState(null)
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [recordingError, setRecordingError] = useState("")
+  
   const audioChunksRef = useRef([])
   // Voice recording handlers
   async function startRecording() {
-    setRecordingError("")
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new window.MediaRecorder(stream)
@@ -38,7 +36,7 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
           const transcription = await transcribeAudio(webmBlob)
           setValue(transcription)
         } catch (err) {
-          setRecordingError("Transcription failed.")
+          toast.error("Transcription failed.")
         } finally {
           setIsTranscribing(false)
         }
@@ -47,7 +45,7 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
       setMediaRecorder(recorder)
       setIsRecording(true)
     } catch (err) {
-      setRecordingError("Could not access microphone.")
+      toast.error("Could not access microphone.")
     }
   }
 
@@ -223,9 +221,6 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
           Enter
         </kbd>{" "}
         for newline
-        {recordingError && (
-          <span className="ml-2 text-red-500">{recordingError}</span>
-        )}
       </div>
     </div>
   )
