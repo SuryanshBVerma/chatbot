@@ -2,7 +2,9 @@ import { useRef, useState, forwardRef, useImperativeHandle, useEffect } from "re
 import { Send, Loader2, Plus, Mic, Square } from "lucide-react"
 import ComposerActionsPopover from "./ComposerActionsPopover"
 import { cls } from "./utils"
+
 import { convertToWav } from "../utils/audioUtils"
+import { transcribeAudio } from "../services/transcribe"
 
 
 
@@ -30,24 +32,16 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
         setIsTranscribing(true);
 
         const webmBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
-        const wavBlob = await convertToWav(webmBlob)
-
-        setAudioBlob(wavBlob)
-        // setAudioURL(URL.createObjectURL(wavBlob))
-
-        // Upload as proper WAV
-        const file = new File([wavBlob], "recording.wav", { type: "audio/wav" })
-        const formData = new FormData()
-        formData.append("audio", file)
-
-        const res = await fetch("http://127.0.0.1:5000/transcribe", {
-          method: "POST",
-          body: formData,
-        })
-
-        const data = await res.json()
-        setIsTranscribing(false);
-        setValue(data.transcription || "")
+        // setAudioBlob(webmBlob)
+        // Call API via service
+        try {
+          const transcription = await transcribeAudio(webmBlob)
+          setValue(transcription)
+        } catch (err) {
+          setRecordingError("Transcription failed.")
+        } finally {
+          setIsTranscribing(false)
+        }
       }
       recorder.start()
       setMediaRecorder(recorder)
