@@ -76,7 +76,7 @@ export default function AIAssistantUI() {
   // Redux conversation state
   const dispatch = useDispatch()
   const conversation = useSelector((state: RootState) => state.conversation.current)
-  // const [conversations, setConversations] = useState(INITIAL_CONVERSATIONS)
+  const [conversations, setConversations] = useState([conversation])
   const [selectedId, setSelectedId] = useState(conversation?.id || null)
   const [templates, setTemplates] = useState(INITIAL_TEMPLATES)
   const [folders, setFolders] = useState(INITIAL_FOLDERS)
@@ -87,78 +87,78 @@ export default function AIAssistantUI() {
   const [isThinking, setIsThinking] = useState(false)
   const [thinkingConvId, setThinkingConvId] = useState(null)
 
-  // useEffect(() => {
-  //   const onKey = (e) => {
-  //     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
-  //       e.preventDefault()
-  //       createNewChat()
-  //     }
-  //     if (!e.metaKey && !e.ctrlKey && e.key === "/") {
-  //       const tag = document.activeElement?.tagName?.toLowerCase()
-  //       if (tag !== "input" && tag !== "textarea") {
-  //         e.preventDefault()
-  //         searchRef.current?.focus()
-  //       }
-  //     }
-  //     if (e.key === "Escape" && sidebarOpen) setSidebarOpen(false)
-  //   }
-  //   window.addEventListener("keydown", onKey)
-  //   return () => window.removeEventListener("keydown", onKey)
-  // }, [sidebarOpen, conversations])
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
+        e.preventDefault()
+        createNewChat()
+      }
+      if (!e.metaKey && !e.ctrlKey && e.key === "/") {
+        const tag = document.activeElement?.tagName?.toLowerCase()
+        if (tag !== "input" && tag !== "textarea") {
+          e.preventDefault()
+          searchRef.current?.focus()
+        }
+      }
+      if (e.key === "Escape" && sidebarOpen) setSidebarOpen(false)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [sidebarOpen, conversations])
 
-  // useEffect(() => {
-  //   if (!selectedId && conversations.length > 0) {
-  //     createNewChat()
-  //   }
-  // }, [])
+  useEffect(() => {
+    if (!selectedId && conversations.length > 0) {
+      createNewChat()
+    }
+  }, [])
 
   // If you want to filter conversations, you need to store all in redux, but for now just use current
-  // const filtered = useMemo(() => {
-  //   if (!query.trim() && conversation) return [conversation]
-  //   const q = query.toLowerCase()
-  //   return conversation && (conversation.title.toLowerCase().includes(q) || conversation.preview.toLowerCase().includes(q)) ? [conversation] : []
-  // }, [conversation, query])
+  const filtered = useMemo(() => {
+    if (!query.trim() && conversation) return [conversation]
+    const q = query.toLowerCase()
+    return conversation && (conversation.title.toLowerCase().includes(q) || conversation.preview.toLowerCase().includes(q)) ? [conversation] : []
+  }, [conversation, query])
 
-  // const pinned = filtered.filter((c) => c.pinned).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+  const pinned = filtered.filter((c) => c.pinned).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
 
-  // const recent = filtered
-  //   .filter((c) => !c.pinned)
-  //   .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
-  //   .slice(0, 10)
+  const recent = filtered
+    .filter((c) => !c.pinned)
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .slice(0, 10)
 
-  // const folderCounts = React.useMemo(() => {
-  //   const map = Object.fromEntries(folders.map((f) => [f.name, 0]))
-  //   for (const c of conversations) if (map[c.folder] != null) map[c.folder] += 1
-  //   return map
-  // }, [conversations, folders])
+  const folderCounts = React.useMemo(() => {
+    const map = Object.fromEntries(folders.map((f) => [f.name, 0]))
+    for (const c of conversations) if (map[c.folder] != null) map[c.folder] += 1
+    return map
+  }, [conversations, folders])
 
-  // function togglePin(id) {
-  //   setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c)))
-  // }
+  function togglePin(id) {
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c)))
+  }
 
-  // function createNewChat() {
-  //   const id = Math.random().toString(36).slice(2)
-  //   const item = {
-  //     id,
-  //     title: "New Chat",
-  //     updatedAt: new Date().toISOString(),
-  //     messageCount: 0,
-  //     preview: "Say hello to start...",
-  //     pinned: false,
-  //     folder: "Work Projects",
-  //     messages: [], // Ensure messages array is empty for new chats
-  //   }
-  //   setConversations((prev) => [item, ...prev])
-  //   setSelectedId(id)
-  //   setSidebarOpen(false)
-  // }
+  function createNewChat() {
+    const id = Math.random().toString(36).slice(2)
+    const item = {
+      id,
+      title: "New Chat",
+      updatedAt: new Date().toISOString(),
+      messageCount: 0,
+      preview: "Say hello to start...",
+      pinned: false,
+      folder: "Work Projects",
+      messages: [], // Ensure messages array is empty for new chats
+    }
+    setConversations((prev) => [item, ...prev])
+    setSelectedId(id)
+    setSidebarOpen(false)
+  }
 
-  // function createFolder() {
-  //   const name = prompt("Folder name")
-  //   if (!name) return
-  //   if (folders.some((f) => f.name.toLowerCase() === name.toLowerCase())) return alert("Folder already exists.")
-  //   setFolders((prev) => [...prev, { id: Math.random().toString(36).slice(2), name }])
-  // }
+  function createFolder() {
+    const name = prompt("Folder name")
+    if (!name) return
+    if (folders.some((f) => f.name.toLowerCase() === name.toLowerCase())) return alert("Folder already exists.")
+    setFolders((prev) => [...prev, { id: Math.random().toString(36).slice(2), name }])
+  }
 
   function sendMessage(convId: string, content: string) {
     if (!content.trim() || !conversation) return
@@ -233,13 +233,13 @@ export default function AIAssistantUI() {
     setThinkingConvId(null)
   }
 
-  // function handleUseTemplate(template) {
-  //   // This will be passed down to the Composer component
-  //   // The Composer will handle inserting the template content
-  //   if (composerRef.current) {
-  //     composerRef.current.insertTemplate(template.content)
-  //   }
-  // }
+  function handleUseTemplate(template) {
+    // This will be passed down to the Composer component
+    // The Composer will handle inserting the template content
+    if (composerRef.current) {
+      composerRef.current.insertTemplate(template.content)
+    }
+  }
 
   const composerRef = useRef(null)
 
