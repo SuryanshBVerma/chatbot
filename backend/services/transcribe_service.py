@@ -1,5 +1,5 @@
 import requests
-from config.config import TRANSCRIBE_SERVICE_URL
+from config.envConfig import TRANSCRIBE_SERVICE_URL
 
 def forward_audio_to_transcribe_service(audio_file):
     response = requests.post(

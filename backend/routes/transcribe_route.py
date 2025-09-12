@@ -3,7 +3,7 @@ from services.transcribe_service import forward_audio_to_transcribe_service
 
 transcribe_bp = Blueprint('transcribe', __name__)
 
-@transcribe_bp.route("/api/transcribe", methods=["POST"])
+@transcribe_bp.route("/transcribe", methods=["POST"])
 def transcribe_audio():
     if "audio" not in request.files:
         return jsonify({"error": "No audio file provided"}), 400
