@@ -1,9 +1,13 @@
 
+
 from flask import Flask
 from routes.transcribe_route import transcribe_bp
 from routes.chat_routes import chat_bp
+from config.config import enable_cors
+
 
 app = Flask(__name__)
+enable_cors(app)
 
 # # MongoDB config
 # app.config["MONGO_URI"] = "mongodb://localhost:27017/chatdb"
