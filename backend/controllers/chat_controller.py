@@ -27,7 +27,7 @@ class ChatController:
         messages.append({
             "id" : "random",
             "role" : "assistant",
-            "contnet" : response["response"],
+            "content" : response["response"],
             "createdAt" : datetime.utcnow().isoformat()
         })
 
