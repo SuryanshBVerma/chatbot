@@ -44,7 +44,7 @@ class ChatController:
 
         # Convert the response to Kannada
         response_eng = response["response"]
-        response_kan = translate_text(input_message_eng)["translations"][0]
+        response_kan = translate_text(response_eng)["translations"][0]
 
         # Adding response to the messages
         messages.append({
