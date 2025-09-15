@@ -89,7 +89,6 @@ const ChatPane = forwardRef(function ChatPane(
             onCheckedChange={(checked) => {
               const value = checked ? "kan" : "eng";
               setLangSwitch(value);
-              console.log("Language switched to:", value);
             }}
             id="lang-switch"
           />
@@ -154,7 +153,9 @@ const ChatPane = forwardRef(function ChatPane(
                           className="inline-flex items-center gap-1 hover:underline cursor-pointer"
                           onClick={() => {
                             if (window.speechSynthesis && m.content_eng) {
-                              const utterance = new window.SpeechSynthesisUtterance(m.content_eng);
+                              // Remove emojis and non-text characters
+                              const textOnly = m.content_eng.replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, "").replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, "");
+                              const utterance = new window.SpeechSynthesisUtterance(textOnly);
                               utterance.pitch = 1;
                               utterance.rate = 1;
                               utterance.volume = 1;
