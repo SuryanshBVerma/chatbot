@@ -10,6 +10,7 @@ import ThemeToggle from "./ThemeToggle"
 import { INITIAL_CONVERSATIONS, INITIAL_TEMPLATES, INITIAL_FOLDERS } from "./mockData"
 import ChatPane from "./ChatPane"
 import { toast } from "react-toastify"
+import { isKannada } from "@/utils/isKannada"
 
 export default function AIAssistantUI() {
   const [theme, setTheme] = useState(() => {
@@ -164,7 +165,14 @@ export default function AIAssistantUI() {
     if (!content.trim() || !conversation) return
 
     const now = new Date().toISOString()
-    const userMsg = { id: Math.random().toString(36).slice(2), role: "user", content, createdAt: now }
+    const isKan = isKannada(content);
+    const userMsg = { 
+      id: Math.random().toString(36).slice(2), 
+      role: "user", 
+      content_eng : isKan ? null : content, 
+      content_kan : isKan ? content : null, 
+      createdAt: now 
+    }
 
     // Update local conversation state in Redux
     const updatedConv = {
@@ -184,6 +192,8 @@ export default function AIAssistantUI() {
       id: convId,
       messages: updatedConv.messages,
     }
+
+    
 
     fetch("http://localhost:8000/api/chat", {
       method: "POST",

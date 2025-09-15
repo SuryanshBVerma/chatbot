@@ -4,7 +4,8 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 export interface Message {
   id: string;
   role: string;
-  content: string;
+  content_eng: string;
+  content_kan: string;
   createdAt: string;
 }
 
@@ -23,9 +24,6 @@ interface ConversationState {
   current: Conversation | null;
 }
 
-function makeId(prefix: string) {
-  return prefix + Math.random().toString(36).slice(2);
-}
 
 const initialState: ConversationState = {
   current: {
