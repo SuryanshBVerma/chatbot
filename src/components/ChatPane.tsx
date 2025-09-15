@@ -1,12 +1,13 @@
 import { useState, forwardRef, useImperativeHandle, useRef } from "react"
 import { useSelector } from "react-redux"
 import type { RootState } from "../stores/store"
-import { Pencil, RefreshCw, Check, X, Square, Volume2 } from "lucide-react"
+import { Pencil, RefreshCw, Check, X, Square, Volume2, Copy } from "lucide-react"
 import Message from "./Message"
 import Composer from "./Composer"
 import { cls, timeAgo } from "./utils"
 import Markdown from 'react-markdown'
 import { Switch } from "./ui/switch"
+import { toast } from "react-toastify"
 
 function ThinkingMessage({ onPause }) {
   return (
@@ -105,7 +106,7 @@ const ChatPane = forwardRef(function ChatPane(
           <>
             {messages.map((m) => (
               <div key={m.id} className="space-y-2">
-                { editingId === m.id ? (
+                {editingId === m.id ? (
                   <div className={cls("rounded-2xl border p-2", "border-zinc-200 dark:border-zinc-800")}>
                     <textarea
                       value={draft}
@@ -135,52 +136,98 @@ const ChatPane = forwardRef(function ChatPane(
                     </div>
                   </div>
                 ) : (
-                  <Message role={m.role}>
-                    <div className="whitespace-pre-wrap">
-                      <Markdown>
-                        {
-                          langSwitch === "eng" ? (
-                            m.content_eng ? m.content_eng : m.content_kan
-                          ) : (
-                            m.content_kan ? m.content_kan : m.content_eng 
-                          )
-                        }
-                      </Markdown>
-                    </div>
-                    {m.role === "assistant" && (
-                      <div className="mt-1 flex gap-2 text-[11px] text-zinc-500">
+                  <>
+                    <Message role={m.role}>
+                      <div className="whitespace-pre-wrap">
+                        <Markdown>
+                          {
+                            langSwitch === "eng" ? (
+                              m.content_eng ? m.content_eng : m.content_kan
+                            ) : (
+                              m.content_kan ? m.content_kan : m.content_eng
+                            )
+                          }
+                        </Markdown>
+                      </div>
+                      {m.role === "assistant" && (
+                        <div className="mt-1 flex gap-2 text-[11px] text-zinc-500">
+                          <button
+                            className="inline-flex items-center gap-1 hover:underline cursor-pointer"
+                            onClick={() => {
+                              if (window.speechSynthesis && m.content_eng) {
+                                // Remove emojis and non-text characters
+                                const textOnly = m.content_eng.replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, "").replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, "");
+                                const utterance = new window.SpeechSynthesisUtterance(textOnly);
+                                utterance.pitch = 1;
+                                utterance.rate = 1;
+                                utterance.volume = 1;
+                                window.speechSynthesis.speak(utterance);
+                              }
+                            }}
+                          >
+                            <Volume2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            className="inline-flex items-center gap-1 hover:underline cursor-pointer"
+                            onClick={() => {
+                              if (langSwitch === "eng" && m.content_eng) {
+                                const textOnly = m.content_eng.replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, "").replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, "");
+                                navigator.clipboard.writeText(textOnly)
+                                  .then(() => {
+                                    toast.success("Text Copied!")
+                                  })
+                                  .catch(() => { /* Optionally handle error */ });
+                              } else {
+                                navigator.clipboard.writeText(m.content_kan)
+                                  .then(() => {
+                                    toast.success("Text Copied!")
+                                  })
+                                  .catch(() => { /* Optionally handle error */ });
+                              }
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                      {m.role === "user" && (
+                        // <div className="mt-1 flex gap-2 text-[11px] text-zinc-500">
+                        //   <button className="inline-flex items-center gap-1 hover:underline" onClick={() => startEdit(m)}>
+                        //     <Pencil className="h-3.5 w-3.5" /> Edit
+                        //   </button>
+                        //   <button
+                        //     className="inline-flex items-center gap-1 hover:underline"
+                        //     onClick={() => onResendMessage?.(m.id)}
+                        //   >
+                        //     <RefreshCw className="h-3.5 w-3.5" /> Resend
+                        //   </button>
+                        // </div>
                         <button
                           className="inline-flex items-center gap-1 hover:underline cursor-pointer"
                           onClick={() => {
-                            if (window.speechSynthesis && m.content_eng) {
-                              // Remove emojis and non-text characters
+
+                            if (langSwitch === "eng" && m.content_eng) {
                               const textOnly = m.content_eng.replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, "").replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, "");
-                              const utterance = new window.SpeechSynthesisUtterance(textOnly);
-                              utterance.pitch = 1;
-                              utterance.rate = 1;
-                              utterance.volume = 1;
-                              window.speechSynthesis.speak(utterance);
+                              navigator.clipboard.writeText(textOnly)
+                                .then(() => {
+                                  toast.success("Text Copied!")
+                                })
+                                .catch(() => { /* Optionally handle error */ });
+                            } else {
+                              navigator.clipboard.writeText(m.content_kan)
+                                .then(() => {
+                                  toast.success("Text Copied!")
+                                })
+                                .catch(() => { /* Optionally handle error */ });
                             }
                           }}
                         >
-                          <Volume2 className="h-4 w-4" />
+                          <Copy className="h-3 w-3" />
                         </button>
-                      </div>
-                    )}
-                    {/* {m.role === "user" && (
-                      <div className="mt-1 flex gap-2 text-[11px] text-zinc-500">
-                        <button className="inline-flex items-center gap-1 hover:underline" onClick={() => startEdit(m)}>
-                          <Pencil className="h-3.5 w-3.5" /> Edit
-                        </button>
-                        <button
-                          className="inline-flex items-center gap-1 hover:underline"
-                          onClick={() => onResendMessage?.(m.id)}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" /> Resend
-                        </button>
-                      </div>
-                    )} */}
-                  </Message>
+                      )}
+                    </Message>
+
+                  </>
                 )}
               </div>
             ))}
