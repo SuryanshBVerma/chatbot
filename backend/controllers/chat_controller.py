@@ -3,6 +3,7 @@ from bson.objectid import ObjectId
 # from config.db import mongo
 from models.chat_model import ChatModel
 from services.llm_service import get_llm_response
+from services.translate_service import translate_text
 
 
 class ChatController:
@@ -12,22 +13,45 @@ class ChatController:
     def converse_with_llm(chat_id, messages):
         # Last user message is input, rest are history
         # Restructuring messages for LLM Service
-        input_message = messages[-1]["content"] 
+
+        # Check - Received Input is English or Kannada
+        input_message_eng = messages[-1].get("content-eng")
+        input_message_kan = messages[-1].get("content-kan")
+
+
+        # If English message is missing, translate Kannada to English
+        if input_message_eng is None:
+            translated_eng = translate_text(input_message_kan)["translations"][0]
+            input_message_eng = translated_eng
+            messages[-1]["content-eng"] = translated_eng
+        else:
+            # Otherwise, translate English to Kannada
+            translated_kan = translate_text(input_message_eng)["translations"][0]
+            input_message_kan = translated_kan
+            messages[-1]["content-kan"] = translated_kan
+
+
         history = [
-            {"content": m["content"], "role": m["role"]}
+            {"content": m["content-eng"], "role": m["role"]}
             for m in messages[:-1]
         ]
         llm_payload = {
-            "input": input_message,
+            "input": input_message_eng,
             "history": history
         }
-        response = get_llm_response(llm_payload)
+
+        response = get_llm_response(llm_payload)    
+
+        # Convert the response to Kannada
+        response_eng = response["response"]
+        response_kan = translate_text(input_message_eng)["translations"][0]
 
         # Adding response to the messages
         messages.append({
             "id" : "random",
             "role" : "assistant",
-            "contnet" : response["response"],
+            "content-eng" : response_eng,
+            "content-kan" : response_kan,
             "createdAt" : datetime.utcnow().isoformat()
         })
 

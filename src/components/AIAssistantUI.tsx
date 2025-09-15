@@ -1,10 +1,15 @@
+// @ts-nocheck
 import React, { useEffect, useMemo, useRef, useState } from "react"
+import { useSelector, useDispatch } from "react-redux"
+import type { RootState } from "../stores/store"
+import { setCurrentConversation, updateMessages } from "../stores/conversationSlice"
 import { Calendar, LayoutGrid, MoreHorizontal } from "lucide-react"
 import Sidebar from "./Sidebar"
 
 import ThemeToggle from "./ThemeToggle"
 import { INITIAL_CONVERSATIONS, INITIAL_TEMPLATES, INITIAL_FOLDERS } from "./mockData"
 import ChatPane from "./ChatPane"
+import { toast } from "react-toastify"
 
 export default function AIAssistantUI() {
   const [theme, setTheme] = useState(() => {
@@ -22,7 +27,7 @@ export default function AIAssistantUI() {
       document.documentElement.setAttribute("data-theme", theme)
       document.documentElement.style.colorScheme = theme
       localStorage.setItem("theme", theme)
-    } catch {}
+    } catch { }
   }, [theme])
 
   useEffect(() => {
@@ -35,7 +40,7 @@ export default function AIAssistantUI() {
       }
       media.addEventListener("change", listener)
       return () => media.removeEventListener("change", listener)
-    } catch {}
+    } catch { }
   }, [])
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -50,7 +55,7 @@ export default function AIAssistantUI() {
   useEffect(() => {
     try {
       localStorage.setItem("sidebar-collapsed", JSON.stringify(collapsed))
-    } catch {}
+    } catch { }
   }, [collapsed])
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -65,11 +70,14 @@ export default function AIAssistantUI() {
   useEffect(() => {
     try {
       localStorage.setItem("sidebar-collapsed-state", JSON.stringify(sidebarCollapsed))
-    } catch {}
+    } catch { }
   }, [sidebarCollapsed])
 
-  const [conversations, setConversations] = useState(INITIAL_CONVERSATIONS)
-  const [selectedId, setSelectedId] = useState(null)
+  // Redux conversation state
+  const dispatch = useDispatch()
+  const conversation = useSelector((state: RootState) => state.conversation.current)
+  const [conversations, setConversations] = useState([conversation])
+  const [selectedId, setSelectedId] = useState(conversation?.id || null)
   const [templates, setTemplates] = useState(INITIAL_TEMPLATES)
   const [folders, setFolders] = useState(INITIAL_FOLDERS)
 
@@ -104,11 +112,12 @@ export default function AIAssistantUI() {
     }
   }, [])
 
+  // If you want to filter conversations, you need to store all in redux, but for now just use current
   const filtered = useMemo(() => {
-    if (!query.trim()) return conversations
+    if (!query.trim() && conversation) return [conversation]
     const q = query.toLowerCase()
-    return conversations.filter((c) => c.title.toLowerCase().includes(q) || c.preview.toLowerCase().includes(q))
-  }, [conversations, query])
+    return conversation && (conversation.title.toLowerCase().includes(q) || conversation.preview.toLowerCase().includes(q)) ? [conversation] : []
+  }, [conversation, query])
 
   const pinned = filtered.filter((c) => c.pinned).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
 
@@ -151,78 +160,72 @@ export default function AIAssistantUI() {
     setFolders((prev) => [...prev, { id: Math.random().toString(36).slice(2), name }])
   }
 
-  function sendMessage(convId, content) {
-    if (!content.trim()) return
+  function sendMessage(convId: string, content: string) {
+    if (!content.trim() || !conversation) return
+
     const now = new Date().toISOString()
     const userMsg = { id: Math.random().toString(36).slice(2), role: "user", content, createdAt: now }
 
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== convId) return c
-        const msgs = [...(c.messages || []), userMsg]
-        return {
-          ...c,
-          messages: msgs,
-          updatedAt: now,
-          messageCount: msgs.length,
-          preview: content.slice(0, 80),
-        }
-      }),
-    )
+    // Update local conversation state in Redux
+    const updatedConv = {
+      ...conversation,
+      messages: [...(conversation.messages || []), userMsg],
+      updatedAt: now,
+      messageCount: (conversation.messages?.length || 0) + 1,
+      preview: content.slice(0, 80),
+    }
+    dispatch(setCurrentConversation(updatedConv))
 
     setIsThinking(true)
     setThinkingConvId(convId)
 
-    const currentConvId = convId
-    setTimeout(() => {
-      // Always clear thinking state and generate response for this specific conversation
-      setIsThinking(false)
-      setThinkingConvId(null)
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== currentConvId) return c
-          const ack = `Got it — I'll help with that.`
-          const asstMsg = {
-            id: Math.random().toString(36).slice(2),
-            role: "assistant",
-            content: ack,
-            createdAt: new Date().toISOString(),
-          }
-          const msgs = [...(c.messages || []), asstMsg]
-          return {
-            ...c,
-            messages: msgs,
-            updatedAt: new Date().toISOString(),
-            messageCount: msgs.length,
-            preview: asstMsg.content.slice(0, 80),
-          }
-        }),
-      )
-    }, 2000)
+    // Prepare payload for LLM API
+    const payload = {
+      id: convId,
+      messages: updatedConv.messages,
+    }
+
+    fetch("http://localhost:8000/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then(res => res.json())
+      .then(data => {
+        // Update messages in Redux from API response
+        dispatch(updateMessages(data.messages || []))
+        setIsThinking(false)
+        setThinkingConvId(null)
+      })
+      .catch(err => {
+        setIsThinking(false)
+        setThinkingConvId(null)
+        toast.error(err)
+      })
   }
 
   function editMessage(convId, messageId, newContent) {
-    const now = new Date().toISOString()
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== convId) return c
-        const msgs = (c.messages || []).map((m) =>
-          m.id === messageId ? { ...m, content: newContent, editedAt: now } : m,
-        )
-        return {
-          ...c,
-          messages: msgs,
-          preview: msgs[msgs.length - 1]?.content?.slice(0, 80) || c.preview,
-        }
-      }),
-    )
+    // const now = new Date().toISOString()
+    // setConversations((prev) =>
+    //   prev.map((c) => {
+    //     if (c.id !== convId) return c
+    //     const msgs = (c.messages || []).map((m) =>
+    //       m.id === messageId ? { ...m, content: newContent, editedAt: now } : m,
+    //     )
+    //     return {
+    //       ...c,
+    //       messages: msgs,
+    //       preview: msgs[msgs.length - 1]?.content?.slice(0, 80) || c.preview,
+    //     }
+    //   }),
+    // )
   }
 
   function resendMessage(convId, messageId) {
-    const conv = conversations.find((c) => c.id === convId)
-    const msg = conv?.messages?.find((m) => m.id === messageId)
-    if (!msg) return
-    sendMessage(convId, msg.content)
+    // const conv = conversations.find((c) => c.id === convId)
+    // const msg = conv?.messages?.find((m) => m.id === messageId)
+    // if (!msg) return
+    // sendMessage(convId, msg.content)
   }
 
   function pauseThinking() {
@@ -240,12 +243,12 @@ export default function AIAssistantUI() {
 
   const composerRef = useRef(null)
 
-  const selected = conversations.find((c) => c.id === selectedId) || null
+  const selected = conversation
 
   return (
     <div className="h-screen w-full bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
 
-      <div className="flex h-[calc(100vh-0px)] ">
+      <div className="flex h-[calc(100vh-0px)]">
         {/* <Sidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -276,7 +279,9 @@ export default function AIAssistantUI() {
           <ChatPane
             ref={composerRef}
             conversation={selected}
-            onSend={(content) => selected && sendMessage(selected.id, content)}
+            onSend={(content) => {
+              selected && sendMessage(selected.id, content)
+            }}
             onEditMessage={(messageId, newContent) => selected && editMessage(selected.id, messageId, newContent)}
             onResendMessage={(messageId) => selected && resendMessage(selected.id, messageId)}
             isThinking={isThinking && thinkingConvId === selected?.id}
