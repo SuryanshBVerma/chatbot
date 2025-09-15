@@ -6,6 +6,7 @@ import Message from "./Message"
 import Composer from "./Composer"
 import { cls, timeAgo } from "./utils"
 import Markdown from 'react-markdown'
+import { Switch } from "./ui/switch"
 
 function ThinkingMessage({ onPause }) {
   return (
@@ -23,7 +24,7 @@ function ThinkingMessage({ onPause }) {
 }
 
 const ChatPane = forwardRef(function ChatPane(
-  { onSend, onEditMessage, onResendMessage, isThinking, onPauseThinking },
+  { onSend, onEditMessage, onResendMessage, isThinking, onPauseThinking, lang = "eng" },
   ref,
 ) {
   // Load current conversation from Redux
@@ -31,6 +32,7 @@ const ChatPane = forwardRef(function ChatPane(
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState("")
   const [busy, setBusy] = useState(false)
+  const [langSwitch, setLangSwitch] = useState("eng")
   const composerRef = useRef(null)
 
   useImperativeHandle(
@@ -79,7 +81,21 @@ const ChatPane = forwardRef(function ChatPane(
           Updated {timeAgo(conversation.updatedAt)} · {count} messages
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2 border-b border-zinc-200 pb-5 dark:border-zinc-800"/>
+        {/* Language Switch */}
+        <div className="mb-4 flex items-center gap-3">
+          <span className="text-sm font-medium">ENG</span>
+          <Switch
+            checked={langSwitch === "kan"}
+            onCheckedChange={(checked) => {
+              const value = checked ? "kan" : "eng";
+              setLangSwitch(value);
+            }}
+            id="lang-switch"
+          />
+          <span className="text-sm font-medium">KAN</span>
+        </div>
+
+        <div className="mb-6 flex flex-wrap gap-2 border-b border-zinc-200 pb-5 dark:border-zinc-800" />
 
         {messages.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 p-6 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
@@ -89,7 +105,7 @@ const ChatPane = forwardRef(function ChatPane(
           <>
             {messages.map((m) => (
               <div key={m.id} className="space-y-2">
-                {editingId === m.id ? (
+                { editingId === m.id ? (
                   <div className={cls("rounded-2xl border p-2", "border-zinc-200 dark:border-zinc-800")}>
                     <textarea
                       value={draft}
@@ -122,7 +138,13 @@ const ChatPane = forwardRef(function ChatPane(
                   <Message role={m.role}>
                     <div className="whitespace-pre-wrap">
                       <Markdown>
-                        {m.content}
+                        {
+                          langSwitch === "eng" ? (
+                            m.content_eng ? m.content_eng : m.content_kan
+                          ) : (
+                            m.content_kan ? m.content_kan : m.content_eng 
+                          )
+                        }
                       </Markdown>
                     </div>
                     {m.role === "assistant" && (
@@ -130,8 +152,10 @@ const ChatPane = forwardRef(function ChatPane(
                         <button
                           className="inline-flex items-center gap-1 hover:underline cursor-pointer"
                           onClick={() => {
-                            if (window.speechSynthesis && m.content) {
-                              const utterance = new window.SpeechSynthesisUtterance(m.content);
+                            if (window.speechSynthesis && m.content_eng) {
+                              // Remove emojis and non-text characters
+                              const textOnly = m.content_eng.replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, "").replace(/[^\p{L}\p{N}\p{P}\p{Z}]/gu, "");
+                              const utterance = new window.SpeechSynthesisUtterance(textOnly);
                               utterance.pitch = 1;
                               utterance.rate = 1;
                               utterance.volume = 1;
@@ -143,7 +167,7 @@ const ChatPane = forwardRef(function ChatPane(
                         </button>
                       </div>
                     )}
-                    {m.role === "user" && (
+                    {/* {m.role === "user" && (
                       <div className="mt-1 flex gap-2 text-[11px] text-zinc-500">
                         <button className="inline-flex items-center gap-1 hover:underline" onClick={() => startEdit(m)}>
                           <Pencil className="h-3.5 w-3.5" /> Edit
@@ -155,7 +179,7 @@ const ChatPane = forwardRef(function ChatPane(
                           <RefreshCw className="h-3.5 w-3.5" /> Resend
                         </button>
                       </div>
-                    )}
+                    )} */}
                   </Message>
                 )}
               </div>

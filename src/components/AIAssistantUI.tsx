@@ -10,6 +10,8 @@ import ThemeToggle from "./ThemeToggle"
 import { INITIAL_CONVERSATIONS, INITIAL_TEMPLATES, INITIAL_FOLDERS } from "./mockData"
 import ChatPane from "./ChatPane"
 import { toast } from "react-toastify"
+import { isKannada } from "@/utils/isKannada"
+import { ChatResponseService } from "@/services/chatService"
 
 export default function AIAssistantUI() {
   const [theme, setTheme] = useState(() => {
@@ -164,7 +166,14 @@ export default function AIAssistantUI() {
     if (!content.trim() || !conversation) return
 
     const now = new Date().toISOString()
-    const userMsg = { id: Math.random().toString(36).slice(2), role: "user", content, createdAt: now }
+    const isKan = isKannada(content);
+    const userMsg = {
+      id: Math.random().toString(36).slice(2),
+      role: "user",
+      content_eng: isKan ? null : content,
+      content_kan: isKan ? content : null,
+      createdAt: now
+    }
 
     // Update local conversation state in Redux
     const updatedConv = {
@@ -185,14 +194,8 @@ export default function AIAssistantUI() {
       messages: updatedConv.messages,
     }
 
-    fetch("http://localhost:8000/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-      .then(res => res.json())
+    ChatResponseService(payload)
       .then(data => {
-        // Update messages in Redux from API response
         dispatch(updateMessages(data.messages || []))
         setIsThinking(false)
         setThinkingConvId(null)
@@ -200,7 +203,7 @@ export default function AIAssistantUI() {
       .catch(err => {
         setIsThinking(false)
         setThinkingConvId(null)
-        toast.error(err)
+        toast.error(err.message || err)
       })
   }
 
