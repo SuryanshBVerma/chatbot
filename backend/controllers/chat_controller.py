@@ -15,24 +15,24 @@ class ChatController:
         # Restructuring messages for LLM Service
 
         # Check - Received Input is English or Kannada
-        input_message_eng = messages[-1].get("content-eng")
-        input_message_kan = messages[-1].get("content-kan")
+        input_message_eng = messages[-1].get("content_eng")
+        input_message_kan = messages[-1].get("content_kan")
 
 
         # If English message is missing, translate Kannada to English
         if input_message_eng is None:
             translated_eng = translate_text(input_message_kan)["translations"][0]
             input_message_eng = translated_eng
-            messages[-1]["content-eng"] = translated_eng
+            messages[-1]["content_eng"] = translated_eng
         else:
             # Otherwise, translate English to Kannada
             translated_kan = translate_text(input_message_eng)["translations"][0]
             input_message_kan = translated_kan
-            messages[-1]["content-kan"] = translated_kan
+            messages[-1]["content_kan"] = translated_kan
 
 
         history = [
-            {"content": m["content-eng"], "role": m["role"]}
+            {"content": m["content_eng"], "role": m["role"]}
             for m in messages[:-1]
         ]
         llm_payload = {
@@ -50,8 +50,8 @@ class ChatController:
         messages.append({
             "id" : "random",
             "role" : "assistant",
-            "content-eng" : response_eng,
-            "content-kan" : response_kan,
+            "content_eng" : response_eng,
+            "content_kan" : response_kan,
             "createdAt" : datetime.utcnow().isoformat()
         })
 
